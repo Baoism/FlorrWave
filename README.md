@@ -1,2 +1,2 @@
-# FlorrWave
-Florr Waveroom Returns
+# FlorrWaves
+Florr Waves Returns
