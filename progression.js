@@ -12,14 +12,12 @@ window.Progression = {
     reloadSpeed:  { name: 'Quick Reload',     desc: '+12% petal recharge',    level: 0, max: 8 }
   },
 
-  // Key format: "petalId_rarityId" -> count
   inventory: {
     'basic_0': 5,
     'rose_0': 2,
     'stinger_0': 2
   },
 
-  // Array of { petalId, rarityId } or null
   equipped: [
     { petalId: 'basic', rarityId: 0 },
     { petalId: 'basic', rarityId: 0 },
@@ -28,8 +26,26 @@ window.Progression = {
     null
   ],
 
+  // Track items collected specifically during the current run
+  runCollected: {},
+  
+  // Persistent Mob Gallery unlocked registry: e.g. { "ladybug_0": true, "bee_2": true }
+  unlockedMobs: JSON.parse(localStorage.getItem('florr_unlocked_mobs') || '{}'),
+
   getSlotCount() {
     return Math.min(GameConfig.MAX_SLOTS, GameConfig.BASE_SLOTS + this.talents.petalSlots.level);
+  },
+
+  resetRunCollection() {
+    this.runCollected = {};
+  },
+
+  unlockMob(type, rarityId) {
+    const key = `${type}_${rarityId}`;
+    if (!this.unlockedMobs[key]) {
+      this.unlockedMobs[key] = true;
+      localStorage.setItem('florr_unlocked_mobs', JSON.stringify(this.unlockedMobs));
+    }
   },
 
   addXp(amount) {
@@ -48,13 +64,15 @@ window.Progression = {
   addPetal(petalId, rarityId, count = 1) {
     const key = `${petalId}_${rarityId}`;
     this.inventory[key] = (this.inventory[key] || 0) + count;
+    
+    // Track for "Collected this run"
+    this.runCollected[key] = (this.runCollected[key] || 0) + count;
   },
 
   equip(petalId, rarityId) {
     const key = `${petalId}_${rarityId}`;
     if (!this.inventory[key] || this.inventory[key] <= 0) return;
 
-    // Ensure equipped array matches current slot count
     while (this.equipped.length < this.getSlotCount()) this.equipped.push(null);
 
     const emptyIdx = this.equipped.findIndex(s => s === null);
