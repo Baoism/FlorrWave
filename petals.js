@@ -5,9 +5,10 @@ window.PetalDB = {
     baseDmg: 12,
     baseHp: 12,
     reload: 2.2,
-    radius: 10,
+    radius: 11,
     color: '#ffffff',
-    desc: 'Balanced starter petal.'
+    shape: 'circle',
+    desc: 'A reliable, balanced starter petal.'
   },
   stinger: {
     id: 'stinger',
@@ -15,9 +16,10 @@ window.PetalDB = {
     baseDmg: 38,
     baseHp: 8,
     reload: 3.8,
-    radius: 9,
+    radius: 10,
     color: '#2f3542',
-    desc: 'High burst damage, breaks easily.'
+    shape: 'shard',
+    desc: 'Sharp blade that deals high burst damage.'
   },
   rose: {
     id: 'rose',
@@ -26,9 +28,10 @@ window.PetalDB = {
     baseHp: 10,
     reload: 3.2,
     heal: 14,
-    radius: 11,
+    radius: 12,
     color: '#ff6b81',
-    desc: 'Restores flower HP while active.'
+    shape: 'flower',
+    desc: 'A gentle blossom that restores flower HP.'
   },
   rock: {
     id: 'rock',
@@ -36,9 +39,10 @@ window.PetalDB = {
     baseDmg: 16,
     baseHp: 50,
     reload: 4.5,
-    radius: 14,
+    radius: 15,
     color: '#747d8c',
-    desc: 'Heavy tank petal that absorbs hits.'
+    shape: 'polygon',
+    desc: 'Heavy armored stone that absorbs impacts.'
   },
   faster: {
     id: 'faster',
@@ -47,9 +51,10 @@ window.PetalDB = {
     baseHp: 10,
     reload: 1.8,
     spinBonus: 0.28,
-    radius: 8,
+    radius: 9,
     color: '#eccc68',
-    desc: 'Increases overall petal spin speed.'
+    shape: 'wing',
+    desc: 'Lightweight design boosting rotation speed.'
   },
   leaf: {
     id: 'leaf',
@@ -58,9 +63,10 @@ window.PetalDB = {
     baseHp: 18,
     reload: 2.4,
     regenBonus: 2.5,
-    radius: 11,
+    radius: 12,
     color: '#2ed573',
-    desc: 'Passively regenerates flower HP.'
+    shape: 'leaf',
+    desc: 'Vibrant leaf providing steady passive regen.'
   },
   peas: {
     id: 'peas',
@@ -71,7 +77,8 @@ window.PetalDB = {
     cluster: 3,
     radius: 7,
     color: '#7bed9f',
-    desc: 'Splits into 3 orbiting mini-peas.'
+    shape: 'cluster',
+    desc: 'Splits into a cluster of 3 orbiting pods.'
   }
 };
 
@@ -82,12 +89,12 @@ window.PetalHelper = {
     return {
       ...def,
       rarity: rar,
-      dmg: def.baseDmg * rar.mult,
-      maxHp: def.baseHp * rar.mult,
-      heal: (def.heal || 0) * rar.mult,
-      regenBonus: (def.regenBonus || 0) * rar.mult
+      dmg: Math.round(def.baseDmg * rar.mult),
+      maxHp: Math.round(def.baseHp * rar.mult),
+      heal: def.heal ? Math.round(def.heal * rar.mult) : 0,
+      regenBonus: def.regenBonus ? +(def.regenBonus * rar.mult).toFixed(1) : 0
     };
   }
 };
 
-DebugLog.log('SYSTEM', `Loaded ${Object.keys(PetalDB).length} petal definitions.`);
+DebugLog.log('SYSTEM', 'Enhanced petals.js loaded with custom shapes.');
