@@ -11,8 +11,8 @@ window.MobDB = {
     shape: 'ladybug',
     ai: 'chase',
     drops: [
-      { petal: 'rose', weight: 60 },
-      { petal: 'basic', weight: 40 }
+      { petal: 'rose', weight: 60, chance: '60%' },
+      { petal: 'basic', weight: 40, chance: '40%' }
     ]
   },
   bee: {
@@ -27,8 +27,8 @@ window.MobDB = {
     shape: 'bee',
     ai: 'dash',
     drops: [
-      { petal: 'stinger', weight: 55 },
-      { petal: 'faster', weight: 45 }
+      { petal: 'stinger', weight: 55, chance: '55%' },
+      { petal: 'faster', weight: 45, chance: '45%' }
     ]
   },
   boulder: {
@@ -43,8 +43,8 @@ window.MobDB = {
     shape: 'rock',
     ai: 'drift',
     drops: [
-      { petal: 'rock', weight: 80 },
-      { petal: 'basic', weight: 20 }
+      { petal: 'rock', weight: 80, chance: '80%' },
+      { petal: 'basic', weight: 20, chance: '20%' }
     ]
   },
   hornet: {
@@ -59,8 +59,8 @@ window.MobDB = {
     shape: 'hornet',
     ai: 'ranged',
     drops: [
-      { petal: 'stinger', weight: 50 },
-      { petal: 'faster', weight: 50 }
+      { petal: 'stinger', weight: 50, chance: '50%' },
+      { petal: 'faster', weight: 50, chance: '50%' }
     ]
   },
   spider: {
@@ -75,8 +75,8 @@ window.MobDB = {
     shape: 'spider',
     ai: 'chase',
     drops: [
-      { petal: 'faster', weight: 50 },
-      { petal: 'leaf', weight: 50 }
+      { petal: 'faster', weight: 50, chance: '50%' },
+      { petal: 'leaf', weight: 50, chance: '50%' }
     ]
   },
   cactus: {
@@ -91,8 +91,8 @@ window.MobDB = {
     shape: 'cactus',
     ai: 'stationary',
     drops: [
-      { petal: 'peas', weight: 60 },
-      { petal: 'leaf', weight: 40 }
+      { petal: 'peas', weight: 60, chance: '60%' },
+      { petal: 'leaf', weight: 40, chance: '40%' }
     ]
   }
 };
@@ -129,6 +129,7 @@ window.WaveManager = {
         hp: def.baseHp * rar.mult,
         maxHp: def.baseHp * rar.mult,
         dmg: def.baseDmg * rar.mult,
+        speed: def.speed,
         radius: def.radius * (1 + rarityId * 0.08),
         aiTimer: Math.random() * 2
       });
