@@ -31,8 +31,23 @@ window.UI = {
     const tip = document.getElementById('tooltip');
     const stats = PetalHelper.getStats(petalId, rarityId);
     tip.style.display = 'block';
-    tip.style.left = (e.clientX + 14) + 'px';
-    tip.style.top = (e.clientY + 14) + 'px';
+    
+    // Smart positioning so it never goes off the bottom of the screen
+    const tipWidth = 220;
+    const tipHeight = 160;
+    let left = e.clientX + 14;
+    let top = e.clientY + 14;
+
+    if (left + tipWidth > window.innerWidth) {
+      left = e.clientX - tipWidth - 14;
+    }
+    if (top + tipHeight > window.innerHeight) {
+      top = e.clientY - tipHeight - 14;
+    }
+
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+
     tip.innerHTML = `
       <div style="font-weight:700; color:${stats.rarity.color}; margin-bottom:3px;">${stats.rarity.name} ${stats.name}</div>
       <div style="font-size:11px; color:#ddd; margin-bottom:6px;">${stats.desc}</div>
@@ -212,7 +227,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Game engine initialized with Z/X/C hotkeys and movement pause.');
+    DebugLog.log('GAME', 'Engine initialized with solid collisions and multi-hit petal mechanics.');
   },
 
   resize() {
@@ -268,7 +283,6 @@ window.Game = {
   },
 
   update(dt) {
-    // If any modal is open, freeze player movement & input tracking
     if (UI.isAnyModalOpen()) {
       this.input.useMouseMove = false;
       return;
@@ -347,11 +361,29 @@ window.Game = {
       p.y = this.player.y + Math.sin(ang) * orbitR;
     });
 
+    // Solid Player vs Mob Collision (Prevents mobs from phasing through player center)
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const m = this.mobs[i];
       const dx = this.player.x - m.x;
       const dy = this.player.y - m.y;
       const dist = Math.hypot(dx, dy) || 1;
+      const minDist = this.player.radius + m.radius;
+
+      if (dist < minDist) {
+        const overlap = minDist - dist;
+        const pushX = (dx / dist) * overlap * 0.5;
+        const pushY = (dy / dist) * overlap * 0.5;
+        this.player.x += pushX;
+        this.player.y += pushY;
+        m.x -= pushX;
+        m.y -= pushY;
+
+        if (this.player.invuln <= 0) {
+          this.player.hp -= m.dmg;
+          this.player.invuln = 0.45;
+        }
+      }
+
       m.aiTimer += dt;
 
       if (m.def.ai === 'chase' || m.def.ai === 'dash') {
@@ -379,26 +411,31 @@ window.Game = {
         m.y += Math.sin(m.aiTimer * 0.5) * m.def.speed * dt;
       }
 
+      // Petal vs Mob Collisions & Multi-Hit Logic
       this.activePetals.forEach(p => {
         if (p.dead || m.hp <= 0) return;
-        if (Math.hypot(p.x - m.x, p.y - m.y) < p.stats.radius + m.radius) {
+        const pDistToMob = Math.hypot(p.x - m.x, p.y - m.y);
+        if (pDistToMob < p.stats.radius + m.radius) {
+          const mobIncomingDmg = m.dmg * 0.35;
+
           m.hp -= p.stats.dmg;
-          p.hp -= m.dmg * 0.35;
-          m.x -= (dx / dist) * 14;
-          m.y -= (dy / dist) * 14;
+
+          if (p.hp > mobIncomingDmg) {
+            // Multi-hit / Superior HP: Petal absorbs minimal damage and doesn't push/bounce away
+            p.hp -= mobIncomingDmg * 0.2;
+          } else {
+            // Fragile / Lower HP: Petal takes full damage, pushes mob back, and risks breaking
+            p.hp -= mobIncomingDmg;
+            m.x -= (dx / dist) * 10;
+            m.y -= (dy / dist) * 10;
+          }
+
           if (p.hp <= 0) {
             p.dead = true;
             p.reloadTimer = p.stats.reload;
           }
         }
       });
-
-      if (dist < this.player.radius + m.radius && this.player.invuln <= 0) {
-        this.player.hp -= m.dmg;
-        this.player.invuln = 0.45;
-        this.player.x += (dx / dist) * -35;
-        this.player.y += (dy / dist) * -35;
-      }
 
       if (m.hp <= 0) {
         this.onMobKilled(m);
