@@ -30,15 +30,14 @@ window.UI = {
     return document.querySelectorAll('.modal.open').length > 0;
   },
 
-  showTooltip(e, petalId, rarityId) {
+  showTooltip(e, type, data1, data2) {
     const tip = document.getElementById('tooltip');
-    const stats = PetalHelper.getStats(petalId, rarityId);
     tip.style.display = 'block';
     
-    const tipWidth = 220;
-    const tipHeight = 160;
     let left = e.clientX + 14;
     let top = e.clientY + 14;
+    const tipWidth = 230;
+    const tipHeight = 180;
 
     if (left + tipWidth > window.innerWidth) left = e.clientX - tipWidth - 14;
     if (top + tipHeight > window.innerHeight) top = e.clientY - tipHeight - 14;
@@ -46,17 +45,40 @@ window.UI = {
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
 
-    tip.innerHTML = `
-      <div style="font-weight:700; color:${stats.rarity.color}; margin-bottom:3px;">${stats.rarity.name} ${stats.name}</div>
-      <div style="font-size:11px; color:#ddd; margin-bottom:6px;">${stats.desc}</div>
-      <div style="font-size:11px; display:flex; flex-direction:column; gap:2px;">
-        <span>💥 Damage: <strong>${stats.dmg}</strong></span>
-        <span>🛡️ Health: <strong>${stats.maxHp}</strong></span>
-        <span>⏱️ Reload: <strong>${stats.reload}s</strong></span>
-        ${stats.heal ? `<span>💖 Heal: <strong>+${stats.heal} HP</strong></span>` : ''}
-        ${stats.regenBonus ? `<span>🍃 Regen: <strong>+${stats.regenBonus}/s</strong></span>` : ''}
-      </div>
-    `;
+    if (type === 'petal') {
+      const stats = PetalHelper.getStats(data1, data2);
+      tip.innerHTML = `
+        <div style="font-weight:700; color:${stats.rarity.color}; margin-bottom:3px;">${stats.rarity.name} ${stats.name}</div>
+        <div style="font-size:11px; color:#ddd; margin-bottom:6px;">${stats.desc}</div>
+        <div style="font-size:11px; display:flex; flex-direction:column; gap:2px;">
+          <span>💥 Damage: <strong>${stats.dmg}</strong></span>
+          <span>🛡️ Health: <strong>${stats.maxHp}</strong></span>
+          <span>⏱️ Reload: <strong>${stats.reload}s</strong></span>
+          ${stats.heal ? `<span>💖 Heal: <strong>+${stats.heal} HP</strong></span>` : ''}
+          ${stats.regenBonus ? `<span>🍃 Regen: <strong>+${stats.regenBonus}/s</strong></span>` : ''}
+        </div>
+      `;
+    } else if (type === 'mob') {
+      const mobDef = MobDB[data1];
+      const rar = GameConfig.RARITIES[data2];
+      const hp = Math.round(mobDef.baseHp * rar.mult);
+      const dmg = Math.round(mobDef.baseDmg * rar.mult);
+      
+      let dropsHtml = mobDef.drops.map(d => `<span style="color:${GameConfig.RARITIES[Math.min(5, data2)].color}">${d.chance} ${PetalDB[d.petal].name}</span>`).join('<br/>');
+
+      tip.innerHTML = `
+        <div style="font-weight:700; color:${rar.color}; margin-bottom:3px;">${rar.name} ${mobDef.name}</div>
+        <div style="font-size:11px; display:flex; flex-direction:column; gap:2px; margin-bottom:6px;">
+          <span>❤️ Health: <strong>${hp}</strong></span>
+          <span>⚔️ Damage: <strong>${dmg}</strong></span>
+          <span>⚡ Speed: <strong>${mobDef.speed}</strong></span>
+        </div>
+        <div style="font-size:11px; border-top:1px solid #444; pt:4px;">
+          <strong style="color:#f1c40f">Drop Rates:</strong><br/>
+          ${dropsHtml}
+        </div>
+      `;
+    }
   },
 
   hideTooltip() {
@@ -89,7 +111,7 @@ window.UI = {
       if (item) {
         const stats = PetalHelper.getStats(item.petalId, item.rarityId);
         div.style.borderColor = stats.rarity.color;
-        div.onmouseenter = (e) => this.showTooltip(e, item.petalId, item.rarityId);
+        div.onmouseenter = (e) => this.showTooltip(e, 'petal', item.petalId, item.rarityId);
         div.onmouseleave = () => this.hideTooltip();
         div.innerHTML = `<div class="slot-dot" style="background:${stats.color}"></div><span>${stats.name}</span>`;
       } else {
@@ -124,7 +146,7 @@ window.UI = {
         const card = document.createElement('div');
         card.className = 'inv-card';
         card.style.borderColor = stats.rarity.color;
-        card.onmouseenter = (e) => this.showTooltip(e, petalId, rarityId);
+        card.onmouseenter = (e) => this.showTooltip(e, 'petal', petalId, rarityId);
         card.onmouseleave = () => this.hideTooltip();
 
         card.innerHTML = `
@@ -174,11 +196,33 @@ window.UI = {
         const card = document.createElement('div');
         card.className = `gallery-card ${unlocked ? '' : 'locked'}`;
         card.style.borderColor = rar.color;
-        card.innerHTML = `
-          <div style="width:14px; height:14px; border-radius:50%; background:${mobDef.color}; border:2px solid ${rar.color}; margin:0 auto;"></div>
-          <span style="font-size:9px; font-weight:700; color:${unlocked ? '#fff' : '#888'}">${mobDef.name}</span>
-          <span style="font-size:8px; color:${rar.color}">${rar.name}</span>
-        `;
+
+        if (unlocked) {
+          card.onmouseenter = (e) => this.showTooltip(e, 'mob', mKey, rar.id);
+          card.onmouseleave = () => this.hideTooltip();
+        }
+
+        // Create canvas mini sprite for gallery card
+        const canvas = document.createElement('canvas');
+        canvas.width = 36;
+        canvas.height = 36;
+        const ctx = canvas.getContext('2d');
+        if (unlocked) {
+          Game.renderMobShape(ctx, { x: 18, y: 18, radius: 14, def: mobDef, rarity: rar }, true);
+        } else {
+          ctx.fillStyle = '#444';
+          ctx.beginPath(); ctx.arc(18, 18, 12, 0, Math.PI * 2); ctx.fill();
+        }
+
+        card.appendChild(canvas);
+
+        const label = document.createElement('span');
+        label.style.fontSize = '8px';
+        label.style.fontWeight = '700';
+        label.style.color = unlocked ? '#fff' : '#888';
+        label.textContent = mobDef.name;
+        card.appendChild(label);
+
         grid.appendChild(card);
       });
     });
@@ -222,6 +266,7 @@ window.Game = {
   projectiles: [],
   activePetals: [],
   orbitAngle: 0,
+  currentOrbitRadius: 68, // Smooth lerp storage
 
   player: {
     x: 0, y: 0,
@@ -275,7 +320,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Engine initialized with Z/X/C hotkeys, run collection, and mob gallery.');
+    DebugLog.log('GAME', 'Engine initialized with smooth spring extension and mob gallery sprites.');
   },
 
   resize() {
@@ -341,7 +386,6 @@ window.Game = {
   },
 
   update(dt) {
-    // Movement freezes when modals are open, but game engine/mobs continue running
     const modalOpen = UI.isAnyModalOpen();
     if (modalOpen) this.input.useMouseMove = false;
 
@@ -391,9 +435,13 @@ window.Game = {
 
     this.orbitAngle += GameConfig.BASE_SPIN_SPEED * spinBonus * dt;
     const reachMult = 1 + Progression.talents.reach.level * 0.10;
+    
+    // Smooth Lerp Target Orbit Extension & Compression
     let targetOrbit = GameConfig.BASE_ORBIT_RADIUS;
     if (attacking) targetOrbit *= GameConfig.ATTACK_ORBIT_MULT * reachMult;
     else if (defending) targetOrbit *= GameConfig.DEFEND_ORBIT_MULT;
+
+    this.currentOrbitRadius += (targetOrbit - this.currentOrbitRadius) * Math.min(1, dt * 12);
 
     const reloadMult = 1 + Progression.talents.reloadSpeed.level * 0.12;
     const totalSlots = Math.max(1, Progression.getSlotCount());
@@ -413,7 +461,7 @@ window.Game = {
 
       const baseAng = this.orbitAngle + (Math.PI * 2 * p.slotIdx) / totalSlots;
       const subOffset = p.subTotal > 1 ? ((p.subIdx / p.subTotal) * Math.PI * 2) : 0;
-      const orbitR = p.subTotal > 1 ? targetOrbit + Math.sin(subOffset + this.orbitAngle * 2) * 14 : targetOrbit;
+      const orbitR = p.subTotal > 1 ? this.currentOrbitRadius + Math.sin(subOffset + this.orbitAngle * 2) * 14 : this.currentOrbitRadius;
       const ang = baseAng + (p.subTotal > 1 ? Math.cos(subOffset + this.orbitAngle * 2) * 0.18 : 0);
 
       p.x = this.player.x + Math.cos(ang) * orbitR;
@@ -531,7 +579,7 @@ window.Game = {
     if (this.player.hp <= 0) {
       DebugLog.log('PLAYER', `Defeated on Wave ${this.wave}. Showing summary.`);
       UI.showDeathSummary();
-      this.player.hp = this.player.maxHp; // reset buffer
+      this.player.hp = this.player.maxHp;
     }
 
     if (this.mobs.length === 0) {
@@ -626,13 +674,13 @@ window.Game = {
     ctx.restore();
   },
 
-  renderMobShape(ctx, m) {
+  renderMobShape(ctx, m, isMini = false) {
     const { x, y, radius: r, def, rarity } = m;
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = def.color;
     ctx.strokeStyle = rarity.color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = isMini ? 2 : 3;
 
     switch (def.shape) {
       case 'ladybug':
@@ -662,7 +710,7 @@ window.Game = {
         break;
       case 'spider':
         ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.strokeStyle = def.color; ctx.lineWidth = 2.5;
+        ctx.strokeStyle = def.color; ctx.lineWidth = isMini ? 1.5 : 2.5;
         for (let i = 0; i < 8; i++) {
           const ang = (Math.PI / 4) * i;
           ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang) * r * 1.5, Math.sin(ang) * r * 1.5); ctx.stroke();
