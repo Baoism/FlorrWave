@@ -12,7 +12,8 @@
     /* Top HUD */
     #hud-top { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; align-items: center; background: rgba(0,0,0,0.65); padding: 8px 20px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.15); pointer-events: none; }
     .hud-pill { font-weight: 700; font-size: 15px; }
-    #xp-bar-wrap { width: 180px; height: 12px; background: #2d323e; border-radius: 6px; overflow: hidden; border: 1px solid #444; }
+    #xp-container { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+    #xp-bar-wrap { width: 140px; height: 12px; background: #2d323e; border-radius: 6px; overflow: hidden; border: 1px solid #444; }
     #xp-bar-fill { width: 0%; height: 100%; background: #4cd137; transition: width 0.2s; }
 
     /* Action Buttons (Left Side) */
@@ -66,33 +67,49 @@
     <div class="hud-pill" id="wave-label">Wave 1</div>
     <div class="hud-pill" id="mobs-label">Mobs: 0</div>
     <div class="hud-pill" id="lvl-label">Lvl 1</div>
-    <div id="xp-bar-wrap"><div id="xp-bar-fill"></div></div>
+    <div id="xp-container">
+      <span>Exp</span>
+      <div id="xp-bar-wrap"><div id="xp-bar-fill"></div></div>
+    </div>
     <div class="hud-pill" id="hp-label">HP: 100/100</div>
   </div>
 
   <div id="hud-buttons">
-    <button class="side-btn" onclick="UI.openModal('inv-modal')">🎒 Petals & Craft [C]</button>
-    <button class="side-btn" onclick="UI.openModal('talent-modal')">⭐ Talents [T] <span id="tp-badge" class="badge">0</span></button>
-    <button class="side-btn" onclick="UI.openModal('debug-modal')">📋 Output / Debug [~]</button>
+    <button class="side-btn" onclick="UI.openModal('inv-modal')">🎒 Petals [Z]</button>
+    <button class="side-btn" onclick="UI.openModal('talent-modal')">⭐ Talents [X] <span id="tp-badge" class="badge">0</span></button>
+    <button class="side-btn" onclick="UI.openModal('craft-modal')">🛠️ Crafting [C]</button>
+    <button class="side-btn" onclick="UI.openModal('debug-modal')">📋 Output [~]</button>
   </div>
 
   <div id="toast"></div>
   <div id="tooltip"></div>
   <div id="loadout-bar"></div>
 
-  <!-- Inventory & Crafting Modal -->
+  <!-- Inventory / Petals Modal -->
   <div id="inv-modal" class="modal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Petals & Crafting (5 → 1 Upgrade)</h3>
-        <div>
-          <button class="btn-craft" style="padding:6px 10px; margin-right:8px;" onclick="Progression.craftAll(); UI.renderInventory();">Craft All Possible</button>
-          <button class="close-btn" onclick="UI.closeModals()">X</button>
-        </div>
+        <h3>Equipped & Inventory Petals [Z]</h3>
+        <button class="close-btn" onclick="UI.closeModals()">X</button>
       </div>
       <div class="modal-body">
-        <p style="font-size:12px; color:#aaa;">Click a slot on your bottom bar to unequip. Hover over petals to view detailed stats, equip them, or combine 5 identical tiers to upgrade.</p>
+        <p style="font-size:12px; color:#aaa;">Click a slot on your bottom bar to unequip. Hover over petals to view detailed stats or equip them.</p>
         <div id="inv-grid" class="inv-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crafting Modal -->
+  <div id="craft-modal" class="modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Petal Crafting (5 → 1 Upgrade) [C]</h3>
+        <button class="btn-craft" style="padding:6px 10px;" onclick="Progression.craftAll(); UI.renderInventory();">Craft All Possible</button>
+        <button class="close-btn" onclick="UI.closeModals()">X</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12px; color:#aaa;">Combine 5 identical rarity petals to upgrade to the next tier.</p>
+        <div id="craft-grid" class="inv-grid"></div>
       </div>
     </div>
   </div>
@@ -101,7 +118,7 @@
   <div id="talent-modal" class="modal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Flower Talents (Available TP: <span id="tp-count">0</span>)</h3>
+        <h3>Flower Talents [X] (Available TP: <span id="tp-count">0</span>)</h3>
         <button class="close-btn" onclick="UI.closeModals()">X</button>
       </div>
       <div class="modal-body" id="talent-list"></div>
@@ -112,7 +129,7 @@
   <div id="debug-modal" class="modal">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Vibe-Coding Output & Telemetry</h3>
+        <h3>Vibe-Coding Output & Telemetry [~]</h3>
         <button class="close-btn" onclick="UI.closeModals()">X</button>
       </div>
       <div class="modal-body">
