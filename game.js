@@ -11,7 +11,7 @@ window.UI = {
   openModal(id) {
     this.closeModals();
     document.getElementById(id).classList.add('open');
-    if (id === 'inv-modal') this.renderInventory();
+    if (id === 'inv-modal' || id === 'craft-modal') this.renderInventory();
     if (id === 'talent-modal') this.renderTalents();
     if (id === 'debug-modal') {
       document.getElementById('debug-output').value = DebugLog.generateReport();
@@ -21,6 +21,10 @@ window.UI = {
   closeModals() {
     document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
     this.hideTooltip();
+  },
+
+  isAnyModalOpen() {
+    return document.querySelectorAll('.modal.open').length > 0;
   },
 
   showTooltip(e, petalId, rarityId) {
@@ -83,41 +87,44 @@ window.UI = {
   },
 
   renderInventory() {
-    const grid = document.getElementById('inv-grid');
-    grid.innerHTML = '';
-    const keys = Object.keys(Progression.inventory).sort((a, b) => {
-      const [pA, rA] = a.split('_');
-      const [pB, rB] = b.split('_');
-      return Number(rB) - Number(rA) || pA.localeCompare(pB);
-    });
+    const grids = [document.getElementById('inv-grid'), document.getElementById('craft-grid')];
+    grids.forEach(grid => {
+      if (!grid) return;
+      grid.innerHTML = '';
+      const keys = Object.keys(Progression.inventory).sort((a, b) => {
+        const [pA, rA] = a.split('_');
+        const [pB, rB] = b.split('_');
+        return Number(rB) - Number(rA) || pA.localeCompare(pB);
+      });
 
-    if (keys.length === 0) {
-      grid.innerHTML = '<p style="color:#888; grid-column:1/-1;">No unequipped petals. Defeat mobs to collect drops!</p>';
-      return;
-    }
+      if (keys.length === 0) {
+        grid.innerHTML = '<p style="color:#888; grid-column:1/-1;">No petals in inventory. Defeat mobs to collect drops!</p>';
+        return;
+      }
 
-    keys.forEach(key => {
-      const count = Progression.inventory[key];
-      const [petalId, rarityStr] = key.split('_');
-      const rarityId = Number(rarityStr);
-      const stats = PetalHelper.getStats(petalId, rarityId);
+      keys.forEach(key => {
+        const count = Progression.inventory[key];
+        const [petalId, rarityStr] = key.split('_');
+        const rarityId = Number(rarityStr);
+        const stats = PetalHelper.getStats(petalId, rarityId);
 
-      const card = document.createElement('div');
-      card.className = 'inv-card';
-      card.style.borderColor = stats.rarity.color;
-      card.onmouseenter = (e) => this.showTooltip(e, petalId, rarityId);
-      card.onmouseleave = () => this.hideTooltip();
+        const card = document.createElement('div');
+        card.className = 'inv-card';
+        card.style.borderColor = stats.rarity.color;
+        card.onmouseenter = (e) => this.showTooltip(e, petalId, rarityId);
+        card.onmouseleave = () => this.hideTooltip();
 
-      card.innerHTML = `
-        <div class="slot-dot" style="background:${stats.color}"></div>
-        <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
-        <span style="font-size:10px; color:#bbb">${stats.rarity.name}</span>
-        <button class="btn-equip" onclick="Progression.equip('${petalId}', ${rarityId})">Equip</button>
-        <button class="btn-craft" ${count < 5 || rarityId >= 5 ? 'disabled' : ''} onclick="Progression.craft('${petalId}', ${rarityId}); UI.renderInventory();">
-          ${rarityId >= 5 ? 'Max Tier' : `Craft (${Math.round(stats.rarity.craftChance * 100)}%)`}
-        </button>
-      `;
-      grid.appendChild(card);
+        card.innerHTML = `
+          <div class="slot-dot" style="background:${stats.color}"></div>
+          <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
+          <span style="font-size:10px; color:#bbb">${stats.rarity.name}</span>
+          <button class="btn-equip" onclick="Progression.equip('${petalId}', ${rarityId}); UI.renderInventory();">Equip</button>
+          <button class="btn-craft" ${count < 5 || rarityId >= 5 ? 'disabled' : ''} onclick="Progression.craft('${petalId}', ${rarityId}); UI.renderInventory();">
+            ${rarityId >= 5 ? 'Max Tier' : `Craft (${Math.round(stats.rarity.craftChance * 100)}%)`}
+          </button>
+        `;
+        grid.appendChild(card);
+      });
     });
   },
 
@@ -175,8 +182,9 @@ window.Game = {
 
     window.addEventListener('keydown', e => {
       this.input.keys[e.code] = true;
-      if (e.code === 'KeyC') UI.openModal('inv-modal');
-      if (e.code === 'KeyT') UI.openModal('talent-modal');
+      if (e.code === 'KeyZ') UI.openModal('inv-modal');
+      if (e.code === 'KeyX') UI.openModal('talent-modal');
+      if (e.code === 'KeyC') UI.openModal('craft-modal');
       if (e.code === 'Backquote') UI.openModal('debug-modal');
       if (e.code === 'Escape') UI.closeModals();
     });
@@ -204,7 +212,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Enhanced graphic engine initialized.');
+    DebugLog.log('GAME', 'Game engine initialized with Z/X/C hotkeys and movement pause.');
   },
 
   resize() {
@@ -260,6 +268,12 @@ window.Game = {
   },
 
   update(dt) {
+    // If any modal is open, freeze player movement & input tracking
+    if (UI.isAnyModalOpen()) {
+      this.input.useMouseMove = false;
+      return;
+    }
+
     let vx = 0, vy = 0;
     if (this.input.keys['KeyW'] || this.input.keys['ArrowUp'])    { vy -= 1; this.input.useMouseMove = false; }
     if (this.input.keys['KeyS'] || this.input.keys['ArrowDown'])  { vy += 1; this.input.useMouseMove = false; }
