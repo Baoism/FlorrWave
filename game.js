@@ -20,6 +20,31 @@ window.UI = {
 
   closeModals() {
     document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+    this.hideTooltip();
+  },
+
+  showTooltip(e, petalId, rarityId) {
+    const tip = document.getElementById('tooltip');
+    const stats = PetalHelper.getStats(petalId, rarityId);
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top = (e.clientY + 14) + 'px';
+    tip.innerHTML = `
+      <div style="font-weight:700; color:${stats.rarity.color}; margin-bottom:3px;">${stats.rarity.name} ${stats.name}</div>
+      <div style="font-size:11px; color:#ddd; margin-bottom:6px;">${stats.desc}</div>
+      <div style="font-size:11px; display:flex; flex-direction:column; gap:2px;">
+        <span>💥 Damage: <strong>${stats.dmg}</strong></span>
+        <span>🛡️ Health: <strong>${stats.maxHp}</strong></span>
+        <span>⏱️ Reload: <strong>${stats.reload}s</strong></span>
+        ${stats.heal ? `<span>💖 Heal: <strong>+${stats.heal} HP</strong></span>` : ''}
+        ${stats.regenBonus ? `<span>🍃 Regen: <strong>+${stats.regenBonus}/s</strong></span>` : ''}
+      </div>
+    `;
+  },
+
+  hideTooltip() {
+    const tip = document.getElementById('tooltip');
+    if (tip) tip.style.display = 'none';
   },
 
   updateHUD() {
@@ -45,10 +70,11 @@ window.UI = {
       div.className = 'slot';
       div.onclick = () => Progression.unequip(i);
       if (item) {
-        const def = PetalDB[item.petalId];
-        const rar = GameConfig.RARITIES[item.rarityId];
-        div.style.borderColor = rar.color;
-        div.innerHTML = `<div class="slot-dot" style="background:${def.color}"></div><span>${def.name}</span>`;
+        const stats = PetalHelper.getStats(item.petalId, item.rarityId);
+        div.style.borderColor = stats.rarity.color;
+        div.onmouseenter = (e) => this.showTooltip(e, item.petalId, item.rarityId);
+        div.onmouseleave = () => this.hideTooltip();
+        div.innerHTML = `<div class="slot-dot" style="background:${stats.color}"></div><span>${stats.name}</span>`;
       } else {
         div.innerHTML = `<span style="color:#666">Empty</span>`;
       }
@@ -74,19 +100,21 @@ window.UI = {
       const count = Progression.inventory[key];
       const [petalId, rarityStr] = key.split('_');
       const rarityId = Number(rarityStr);
-      const def = PetalDB[petalId];
-      const rar = GameConfig.RARITIES[rarityId];
+      const stats = PetalHelper.getStats(petalId, rarityId);
 
       const card = document.createElement('div');
       card.className = 'inv-card';
-      card.style.borderColor = rar.color;
+      card.style.borderColor = stats.rarity.color;
+      card.onmouseenter = (e) => this.showTooltip(e, petalId, rarityId);
+      card.onmouseleave = () => this.hideTooltip();
+
       card.innerHTML = `
-        <div class="slot-dot" style="background:${def.color}"></div>
-        <strong style="color:${rar.color}">${def.name} x${count}</strong>
-        <span style="font-size:10px; color:#bbb">${rar.name}</span>
+        <div class="slot-dot" style="background:${stats.color}"></div>
+        <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
+        <span style="font-size:10px; color:#bbb">${stats.rarity.name}</span>
         <button class="btn-equip" onclick="Progression.equip('${petalId}', ${rarityId})">Equip</button>
         <button class="btn-craft" ${count < 5 || rarityId >= 5 ? 'disabled' : ''} onclick="Progression.craft('${petalId}', ${rarityId}); UI.renderInventory();">
-          ${rarityId >= 5 ? 'Max Tier' : `Craft (${Math.round(rar.craftChance * 100)}%)`}
+          ${rarityId >= 5 ? 'Max Tier' : `Craft (${Math.round(stats.rarity.craftChance * 100)}%)`}
         </button>
       `;
       grid.appendChild(card);
@@ -145,7 +173,6 @@ window.Game = {
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
-    // Input Listeners
     window.addEventListener('keydown', e => {
       this.input.keys[e.code] = true;
       if (e.code === 'KeyC') UI.openModal('inv-modal');
@@ -177,7 +204,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Engine initialized successfully.');
+    DebugLog.log('GAME', 'Enhanced graphic engine initialized.');
   },
 
   resize() {
@@ -233,7 +260,6 @@ window.Game = {
   },
 
   update(dt) {
-    // 1. Player Movement
     let vx = 0, vy = 0;
     if (this.input.keys['KeyW'] || this.input.keys['ArrowUp'])    { vy -= 1; this.input.useMouseMove = false; }
     if (this.input.keys['KeyS'] || this.input.keys['ArrowDown'])  { vy += 1; this.input.useMouseMove = false; }
@@ -253,7 +279,6 @@ window.Game = {
       }
     }
 
-    // Clamp to Arena
     const pDist = Math.hypot(this.player.x, this.player.y);
     if (pDist > GameConfig.ARENA_RADIUS - this.player.radius) {
       const ang = Math.atan2(this.player.y, this.player.x);
@@ -263,7 +288,6 @@ window.Game = {
 
     if (this.player.invuln > 0) this.player.invuln -= dt;
 
-    // 2. Active Petals & Orbit
     const attacking = this.input.mouseDownLeft || this.input.keys['Space'];
     const defending = this.input.mouseDownRight || this.input.keys['ShiftLeft'];
 
@@ -309,7 +333,6 @@ window.Game = {
       p.y = this.player.y + Math.sin(ang) * orbitR;
     });
 
-    // 3. Mobs AI & Collisions
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const m = this.mobs[i];
       const dx = this.player.x - m.x;
@@ -342,13 +365,11 @@ window.Game = {
         m.y += Math.sin(m.aiTimer * 0.5) * m.def.speed * dt;
       }
 
-      // Petal vs Mob Collision
       this.activePetals.forEach(p => {
         if (p.dead || m.hp <= 0) return;
         if (Math.hypot(p.x - m.x, p.y - m.y) < p.stats.radius + m.radius) {
           m.hp -= p.stats.dmg;
           p.hp -= m.dmg * 0.35;
-          // Knockback
           m.x -= (dx / dist) * 14;
           m.y -= (dy / dist) * 14;
           if (p.hp <= 0) {
@@ -358,7 +379,6 @@ window.Game = {
         }
       });
 
-      // Player vs Mob Collision
       if (dist < this.player.radius + m.radius && this.player.invuln <= 0) {
         this.player.hp -= m.dmg;
         this.player.invuln = 0.45;
@@ -366,14 +386,12 @@ window.Game = {
         this.player.y += (dy / dist) * -35;
       }
 
-      // Check Mob Death
       if (m.hp <= 0) {
         this.onMobKilled(m);
         this.mobs.splice(i, 1);
       }
     }
 
-    // 4. Projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const pr = this.projectiles[i];
       pr.x += pr.vx * dt;
@@ -390,7 +408,6 @@ window.Game = {
       if (pr.life <= 0) this.projectiles.splice(i, 1);
     }
 
-    // 5. Loot Drops Pickup
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const d = this.drops[i];
       const dist = Math.hypot(d.x - this.player.x, d.y - this.player.y);
@@ -405,7 +422,6 @@ window.Game = {
       }
     }
 
-    // 6. Player Death Check
     if (this.player.hp <= 0) {
       DebugLog.log('PLAYER', `Defeated on Wave ${this.wave}. Respawning...`);
       UI.toast(`Defeated on Wave ${this.wave}! Restarting Wave...`);
@@ -416,7 +432,6 @@ window.Game = {
       this.startWave(Math.max(1, this.wave - 1));
     }
 
-    // 7. Wave Cleared Check
     if (this.mobs.length === 0) {
       this.waveCooldown += dt;
       if (this.waveCooldown > 1.2) {
@@ -444,6 +459,122 @@ window.Game = {
         rarityId: m.rarity.id
       });
     }
+  },
+
+  renderPetalShape(ctx, x, y, r, stats) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = stats.color;
+    ctx.strokeStyle = stats.rarity.color;
+    ctx.lineWidth = 2.5;
+
+    switch (stats.shape) {
+      case 'shard':
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.3);
+        ctx.lineTo(r * 0.8, r * 0.8);
+        ctx.lineTo(0, r * 0.4);
+        ctx.lineTo(-r * 0.8, r * 0.8);
+        ctx.closePath();
+        break;
+      case 'flower':
+        for (let i = 0; i < 5; i++) {
+          const ang = (Math.PI * 2 / 5) * i;
+          ctx.beginPath();
+          ctx.arc(Math.cos(ang) * (r * 0.4), Math.sin(ang) * (r * 0.4), r * 0.6, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+        }
+        break;
+      case 'polygon':
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const ang = (Math.PI / 3) * i;
+          const px = Math.cos(ang) * r, py = Math.sin(ang) * r;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        break;
+      case 'wing':
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 1.2, r * 0.6, Math.PI / 4, 0, Math.PI * 2);
+        break;
+      case 'leaf':
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.2);
+        ctx.quadraticCurveTo(r * 1.2, 0, 0, r * 1.2);
+        ctx.quadraticCurveTo(-r * 1.2, 0, 0, -r * 1.2);
+        break;
+      case 'cluster':
+        for (let i = 0; i < 3; i++) {
+          const ang = (Math.PI * 2 / 3) * i;
+          ctx.beginPath();
+          ctx.arc(Math.cos(ang) * (r * 0.5), Math.sin(ang) * (r * 0.5), r * 0.6, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+        }
+        break;
+      default:
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        break;
+    }
+    if (stats.shape !== 'flower' && stats.shape !== 'cluster') {
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+
+  renderMobShape(ctx, m) {
+    const { x, y, radius: r, def, rarity } = m;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = def.color;
+    ctx.strokeStyle = rarity.color;
+    ctx.lineWidth = 3;
+
+    switch (def.shape) {
+      case 'ladybug':
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(0, -r * 0.4, r * 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, r * 0.2, r * 0.3, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'bee':
+        ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.beginPath(); ctx.ellipse(-r * 0.2, -r * 0.8, r * 0.4, r * 0.2, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(r * 0.2, -r * 0.8, r * 0.4, r * 0.2, 0.3, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'rock':
+        ctx.beginPath();
+        for (let i = 0; i < 7; i++) {
+          const ang = (Math.PI * 2 / 7) * i;
+          const pr = r * (0.8 + Math.sin(i * 3) * 0.2);
+          const px = Math.cos(ang) * pr, py = Math.sin(ang) * pr;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        break;
+      case 'hornet':
+        ctx.beginPath(); ctx.moveTo(r * 1.3, 0); ctx.lineTo(-r, -r * 0.8); ctx.lineTo(-r * 0.6, 0); ctx.lineTo(-r, r * 0.8); ctx.closePath(); ctx.fill(); ctx.stroke();
+        break;
+      case 'spider':
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = def.color; ctx.lineWidth = 2.5;
+        for (let i = 0; i < 8; i++) {
+          const ang = (Math.PI / 4) * i;
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang) * r * 1.5, Math.sin(ang) * r * 1.5); ctx.stroke();
+        }
+        break;
+      case 'cactus':
+        ctx.beginPath(); ctx.roundRect(-r * 0.4, -r, r * 0.8, r * 2, r * 0.4); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.roundRect(-r, -r * 0.3, r * 2, r * 0.6, r * 0.3); ctx.fill(); ctx.stroke();
+        break;
+      default:
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        break;
+    }
+    ctx.restore();
   },
 
   render() {
@@ -476,35 +607,36 @@ window.Game = {
     // Loot Drops
     this.drops.forEach(d => {
       const rar = GameConfig.RARITIES[d.rarityId];
-      const def = PetalDB[d.petalId];
+      const stats = PetalHelper.getStats(d.petalId, d.rarityId);
       ctx.fillStyle = rar.color;
       ctx.fillRect(d.x - 12, d.y - 12, 24, 24);
       ctx.strokeStyle = '#111';
       ctx.lineWidth = 2;
       ctx.strokeRect(d.x - 12, d.y - 12, 24, 24);
 
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = def.color;
-      ctx.fill();
+      this.renderPetalShape(ctx, d.x, d.y, 8, stats);
     });
 
-    // Mobs
+    // Mobs (with Name & Rarity labels)
     this.mobs.forEach(m => {
-      ctx.beginPath();
-      ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
-      ctx.fillStyle = m.def.color;
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = m.rarity.color;
-      ctx.stroke();
+      this.renderMobShape(ctx, m);
 
       // Health bar
       const bw = m.radius * 1.8;
+      const barY = m.y + m.radius + 6;
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(m.x - bw / 2, m.y + m.radius + 6, bw, 5);
+      ctx.fillRect(m.x - bw / 2, barY, bw, 5);
       ctx.fillStyle = '#2ed573';
-      ctx.fillRect(m.x - bw / 2, m.y + m.radius + 6, bw * Math.max(0, m.hp / m.maxHp), 5);
+      ctx.fillRect(m.x - bw / 2, barY, bw * Math.max(0, m.hp / m.maxHp), 5);
+
+      // Mob Name & Rarity text below HP bar
+      ctx.font = 'bold 10px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = m.rarity.color;
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 3;
+      ctx.fillText(`${m.rarity.name} ${m.def.name}`, m.x, barY + 16);
+      ctx.shadowBlur = 0;
     });
 
     // Projectiles
@@ -518,13 +650,7 @@ window.Game = {
     // Active Petals
     this.activePetals.forEach(p => {
       if (p.dead) return;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.stats.radius, 0, Math.PI * 2);
-      ctx.fillStyle = p.stats.color;
-      ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = p.stats.rarity.color;
-      ctx.stroke();
+      this.renderPetalShape(ctx, p.x, p.y, p.stats.radius, p.stats);
     });
 
     // Player Flower
@@ -536,7 +662,6 @@ window.Game = {
     ctx.strokeStyle = '#d63031';
     ctx.stroke();
 
-    // Eyes
     ctx.fillStyle = '#2d3436';
     ctx.beginPath();
     ctx.arc(this.player.x - 7, this.player.y - 4, 3, 0, Math.PI * 2);
