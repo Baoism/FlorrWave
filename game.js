@@ -13,13 +13,16 @@ window.UI = {
     document.getElementById(id).classList.add('open');
     if (id === 'inv-modal' || id === 'craft-modal') this.renderInventory();
     if (id === 'talent-modal') this.renderTalents();
+    if (id === 'gallery-modal') this.renderGallery();
     if (id === 'debug-modal') {
       document.getElementById('debug-output').value = DebugLog.generateReport();
     }
   },
 
   closeModals() {
-    document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.modal').forEach(m => {
+      if (m.id !== 'death-modal') m.classList.remove('open');
+    });
     this.hideTooltip();
   },
 
@@ -32,18 +35,13 @@ window.UI = {
     const stats = PetalHelper.getStats(petalId, rarityId);
     tip.style.display = 'block';
     
-    // Smart positioning so it never goes off the bottom of the screen
     const tipWidth = 220;
     const tipHeight = 160;
     let left = e.clientX + 14;
     let top = e.clientY + 14;
 
-    if (left + tipWidth > window.innerWidth) {
-      left = e.clientX - tipWidth - 14;
-    }
-    if (top + tipHeight > window.innerHeight) {
-      top = e.clientY - tipHeight - 14;
-    }
+    if (left + tipWidth > window.innerWidth) left = e.clientX - tipWidth - 14;
+    if (top + tipHeight > window.innerHeight) top = e.clientY - tipHeight - 14;
 
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
@@ -113,7 +111,7 @@ window.UI = {
       });
 
       if (keys.length === 0) {
-        grid.innerHTML = '<p style="color:#888; grid-column:1/-1;">No petals in inventory. Defeat mobs to collect drops!</p>';
+        grid.innerHTML = '<p style="color:#ddd; grid-column:1/-1;">No petals in inventory.</p>';
         return;
       }
 
@@ -132,7 +130,7 @@ window.UI = {
         card.innerHTML = `
           <div class="slot-dot" style="background:${stats.color}"></div>
           <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
-          <span style="font-size:10px; color:#bbb">${stats.rarity.name}</span>
+          <span style="font-size:10px; color:#ddd">${stats.rarity.name}</span>
           <button class="btn-equip" onclick="Progression.equip('${petalId}', ${rarityId}); UI.renderInventory();">Equip</button>
           <button class="btn-craft" ${count < 5 || rarityId >= 5 ? 'disabled' : ''} onclick="Progression.craft('${petalId}', ${rarityId}); UI.renderInventory();">
             ${rarityId >= 5 ? 'Max Tier' : `Craft (${Math.round(stats.rarity.craftChance * 100)}%)`}
@@ -152,8 +150,8 @@ window.UI = {
       row.className = 'talent-row';
       row.innerHTML = `
         <div>
-          <strong>${t.name}</strong> <span style="color:#4cd137">(Lv.${t.level}/${t.max})</span>
-          <div style="font-size:12px; color:#aaa">${t.desc}</div>
+          <strong>${t.name}</strong> <span style="color:#27ae60">(Lv.${t.level}/${t.max})</span>
+          <div style="font-size:12px; color:#555">${t.desc}</div>
         </div>
         <button class="talent-btn" ${Progression.talentPoints <= 0 || t.level >= t.max ? 'disabled' : ''} onclick="Progression.upgradeTalent('${key}')">
           Upgrade (1 TP)
@@ -161,6 +159,56 @@ window.UI = {
       `;
       list.appendChild(row);
     });
+  },
+
+  renderGallery() {
+    const grid = document.getElementById('gallery-grid');
+    grid.innerHTML = '';
+    
+    Object.keys(MobDB).forEach(mKey => {
+      const mobDef = MobDB[mKey];
+      GameConfig.RARITIES.forEach(rar => {
+        const key = `${mKey}_${rar.id}`;
+        const unlocked = Progression.unlockedMobs[key];
+
+        const card = document.createElement('div');
+        card.className = `gallery-card ${unlocked ? '' : 'locked'}`;
+        card.style.borderColor = rar.color;
+        card.innerHTML = `
+          <div style="width:14px; height:14px; border-radius:50%; background:${mobDef.color}; border:2px solid ${rar.color}; margin:0 auto;"></div>
+          <span style="font-size:9px; font-weight:700; color:${unlocked ? '#fff' : '#888'}">${mobDef.name}</span>
+          <span style="font-size:8px; color:${rar.color}">${rar.name}</span>
+        `;
+        grid.appendChild(card);
+      });
+    });
+  },
+
+  showDeathSummary() {
+    const grid = document.getElementById('collected-run-grid');
+    grid.innerHTML = '';
+    const keys = Object.keys(Progression.runCollected);
+
+    if (keys.length === 0) {
+      grid.innerHTML = '<p style="color:#888; grid-column:1/-1; text-align:center;">No petals collected this run.</p>';
+    } else {
+      keys.forEach(key => {
+        const count = Progression.runCollected[key];
+        const [petalId, rarityStr] = key.split('_');
+        const stats = PetalHelper.getStats(petalId, Number(rarityStr));
+        const card = document.createElement('div');
+        card.className = 'inv-card';
+        card.style.borderColor = stats.rarity.color;
+        card.innerHTML = `
+          <div class="slot-dot" style="background:${stats.color}"></div>
+          <strong style="color:${stats.rarity.color}; font-size:11px;">${stats.name}</strong>
+          <span style="font-size:10px; color:#fff;">x${count}</span>
+          <span style="font-size:9px; color:#bbb">${stats.rarity.name}</span>
+        `;
+        grid.appendChild(card);
+      });
+    }
+    document.getElementById('death-modal').classList.add('open');
   }
 };
 
@@ -227,7 +275,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Engine initialized with solid collisions and multi-hit petal mechanics.');
+    DebugLog.log('GAME', 'Engine initialized with Z/X/C hotkeys, run collection, and mob gallery.');
   },
 
   resize() {
@@ -272,6 +320,16 @@ window.Game = {
     UI.updateHUD();
   },
 
+  respawn() {
+    document.getElementById('death-modal').classList.remove('open');
+    Progression.resetRunCollection();
+    this.player.hp = this.player.maxHp;
+    this.player.x = 0;
+    this.player.y = 0;
+    this.projectiles = [];
+    this.startWave(Math.max(1, this.wave - 1));
+  },
+
   loop(now) {
     const dt = Math.min(0.05, (now - this.lastTime) / 1000);
     this.lastTime = now;
@@ -283,27 +341,28 @@ window.Game = {
   },
 
   update(dt) {
-    if (UI.isAnyModalOpen()) {
-      this.input.useMouseMove = false;
-      return;
-    }
+    // Movement freezes when modals are open, but game engine/mobs continue running
+    const modalOpen = UI.isAnyModalOpen();
+    if (modalOpen) this.input.useMouseMove = false;
 
-    let vx = 0, vy = 0;
-    if (this.input.keys['KeyW'] || this.input.keys['ArrowUp'])    { vy -= 1; this.input.useMouseMove = false; }
-    if (this.input.keys['KeyS'] || this.input.keys['ArrowDown'])  { vy += 1; this.input.useMouseMove = false; }
-    if (this.input.keys['KeyA'] || this.input.keys['ArrowLeft'])  { vx -= 1; this.input.useMouseMove = false; }
-    if (this.input.keys['KeyD'] || this.input.keys['ArrowRight']) { vx += 1; this.input.useMouseMove = false; }
+    if (!modalOpen) {
+      let vx = 0, vy = 0;
+      if (this.input.keys['KeyW'] || this.input.keys['ArrowUp'])    { vy -= 1; this.input.useMouseMove = false; }
+      if (this.input.keys['KeyS'] || this.input.keys['ArrowDown'])  { vy += 1; this.input.useMouseMove = false; }
+      if (this.input.keys['KeyA'] || this.input.keys['ArrowLeft'])  { vx -= 1; this.input.useMouseMove = false; }
+      if (this.input.keys['KeyD'] || this.input.keys['ArrowRight']) { vx += 1; this.input.useMouseMove = false; }
 
-    if (vx !== 0 || vy !== 0) {
-      const len = Math.hypot(vx, vy);
-      this.player.x += (vx / len) * GameConfig.BASE_PLAYER_SPEED * dt;
-      this.player.y += (vy / len) * GameConfig.BASE_PLAYER_SPEED * dt;
-    } else if (this.input.useMouseMove) {
-      const dist = Math.hypot(this.input.mouseX, this.input.mouseY);
-      if (dist > 12) {
-        const speedFactor = Math.min(1, dist / 120);
-        this.player.x += (this.input.mouseX / dist) * GameConfig.BASE_PLAYER_SPEED * speedFactor * dt;
-        this.player.y += (this.input.mouseY / dist) * GameConfig.BASE_PLAYER_SPEED * speedFactor * dt;
+      if (vx !== 0 || vy !== 0) {
+        const len = Math.hypot(vx, vy);
+        this.player.x += (vx / len) * GameConfig.BASE_PLAYER_SPEED * dt;
+        this.player.y += (vy / len) * GameConfig.BASE_PLAYER_SPEED * dt;
+      } else if (this.input.useMouseMove) {
+        const dist = Math.hypot(this.input.mouseX, this.input.mouseY);
+        if (dist > 12) {
+          const speedFactor = Math.min(1, dist / 120);
+          this.player.x += (this.input.mouseX / dist) * GameConfig.BASE_PLAYER_SPEED * speedFactor * dt;
+          this.player.y += (this.input.mouseY / dist) * GameConfig.BASE_PLAYER_SPEED * speedFactor * dt;
+        }
       }
     }
 
@@ -361,7 +420,6 @@ window.Game = {
       p.y = this.player.y + Math.sin(ang) * orbitR;
     });
 
-    // Solid Player vs Mob Collision (Prevents mobs from phasing through player center)
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const m = this.mobs[i];
       const dx = this.player.x - m.x;
@@ -411,20 +469,16 @@ window.Game = {
         m.y += Math.sin(m.aiTimer * 0.5) * m.def.speed * dt;
       }
 
-      // Petal vs Mob Collisions & Multi-Hit Logic
       this.activePetals.forEach(p => {
         if (p.dead || m.hp <= 0) return;
         const pDistToMob = Math.hypot(p.x - m.x, p.y - m.y);
         if (pDistToMob < p.stats.radius + m.radius) {
           const mobIncomingDmg = m.dmg * 0.35;
-
           m.hp -= p.stats.dmg;
 
           if (p.hp > mobIncomingDmg) {
-            // Multi-hit / Superior HP: Petal absorbs minimal damage and doesn't push/bounce away
             p.hp -= mobIncomingDmg * 0.2;
           } else {
-            // Fragile / Lower HP: Petal takes full damage, pushes mob back, and risks breaking
             p.hp -= mobIncomingDmg;
             m.x -= (dx / dist) * 10;
             m.y -= (dy / dist) * 10;
@@ -438,6 +492,7 @@ window.Game = {
       });
 
       if (m.hp <= 0) {
+        Progression.unlockMob(m.type, m.rarity.id);
         this.onMobKilled(m);
         this.mobs.splice(i, 1);
       }
@@ -474,13 +529,9 @@ window.Game = {
     }
 
     if (this.player.hp <= 0) {
-      DebugLog.log('PLAYER', `Defeated on Wave ${this.wave}. Respawning...`);
-      UI.toast(`Defeated on Wave ${this.wave}! Restarting Wave...`);
-      this.player.hp = this.player.maxHp;
-      this.player.x = 0;
-      this.player.y = 0;
-      this.projectiles = [];
-      this.startWave(Math.max(1, this.wave - 1));
+      DebugLog.log('PLAYER', `Defeated on Wave ${this.wave}. Showing summary.`);
+      UI.showDeathSummary();
+      this.player.hp = this.player.maxHp; // reset buffer
     }
 
     if (this.mobs.length === 0) {
@@ -636,7 +687,6 @@ window.Game = {
     ctx.save();
     ctx.translate(canvas.width / 2 - this.player.x, canvas.height / 2 - this.player.y);
 
-    // Arena Floor & Grid
     ctx.beginPath();
     ctx.arc(0, 0, GameConfig.ARENA_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = '#26a65b';
@@ -655,7 +705,6 @@ window.Game = {
       ctx.beginPath(); ctx.moveTo(-GameConfig.ARENA_RADIUS, y); ctx.lineTo(GameConfig.ARENA_RADIUS, y); ctx.stroke();
     }
 
-    // Loot Drops
     this.drops.forEach(d => {
       const rar = GameConfig.RARITIES[d.rarityId];
       const stats = PetalHelper.getStats(d.petalId, d.rarityId);
@@ -668,11 +717,9 @@ window.Game = {
       this.renderPetalShape(ctx, d.x, d.y, 8, stats);
     });
 
-    // Mobs (with Name & Rarity labels)
     this.mobs.forEach(m => {
       this.renderMobShape(ctx, m);
 
-      // Health bar
       const bw = m.radius * 1.8;
       const barY = m.y + m.radius + 6;
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -680,7 +727,6 @@ window.Game = {
       ctx.fillStyle = '#2ed573';
       ctx.fillRect(m.x - bw / 2, barY, bw * Math.max(0, m.hp / m.maxHp), 5);
 
-      // Mob Name & Rarity text below HP bar
       ctx.font = 'bold 10px Segoe UI, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = m.rarity.color;
@@ -690,7 +736,6 @@ window.Game = {
       ctx.shadowBlur = 0;
     });
 
-    // Projectiles
     this.projectiles.forEach(pr => {
       ctx.beginPath();
       ctx.arc(pr.x, pr.y, pr.radius, 0, Math.PI * 2);
@@ -698,13 +743,11 @@ window.Game = {
       ctx.fill();
     });
 
-    // Active Petals
     this.activePetals.forEach(p => {
       if (p.dead) return;
       this.renderPetalShape(ctx, p.x, p.y, p.stats.radius, p.stats);
     });
 
-    // Player Flower
     ctx.beginPath();
     ctx.arc(this.player.x, this.player.y, this.player.radius, 0, Math.PI * 2);
     ctx.fillStyle = this.player.invuln > 0 ? '#ff7675' : '#ffeaa7';
