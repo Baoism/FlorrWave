@@ -27,6 +27,9 @@
     .slot:hover { filter: brightness(1.15); }
     .slot-dot { width: 18px; height: 18px; border-radius: 50%; margin-bottom: 3px; border: 2px solid rgba(0,0,0,0.4); }
 
+    /* Tooltip */
+    #tooltip { position: fixed; display: none; background: rgba(20,22,28,0.95); border: 2px solid #555; padding: 10px; border-radius: 8px; z-index: 50; pointer-events: none; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+
     /* Modals */
     .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 20; align-items: center; justify-content: center; }
     .modal.open { display: flex; }
@@ -74,6 +77,7 @@
   </div>
 
   <div id="toast"></div>
+  <div id="tooltip"></div>
   <div id="loadout-bar"></div>
 
   <!-- Inventory & Crafting Modal -->
@@ -87,7 +91,7 @@
         </div>
       </div>
       <div class="modal-body">
-        <p style="font-size:12px; color:#aaa;">Click a slot on your bottom bar to unequip. Equip petals below or combine 5 of the same rarity to upgrade.</p>
+        <p style="font-size:12px; color:#aaa;">Click a slot on your bottom bar to unequip. Hover over petals to view detailed stats, equip them, or combine 5 identical tiers to upgrade.</p>
         <div id="inv-grid" class="inv-grid"></div>
       </div>
     </div>
