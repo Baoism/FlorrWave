@@ -8,6 +8,7 @@ window.MobDB = {
     radius: 22,
     xp: 15,
     color: '#ff4757',
+    shape: 'ladybug',
     ai: 'chase',
     drops: [
       { petal: 'rose', weight: 60 },
@@ -23,6 +24,7 @@ window.MobDB = {
     radius: 18,
     xp: 20,
     color: '#ffa502',
+    shape: 'bee',
     ai: 'dash',
     drops: [
       { petal: 'stinger', weight: 55 },
@@ -38,6 +40,7 @@ window.MobDB = {
     radius: 36,
     xp: 35,
     color: '#57606f',
+    shape: 'rock',
     ai: 'drift',
     drops: [
       { petal: 'rock', weight: 80 },
@@ -53,6 +56,7 @@ window.MobDB = {
     radius: 24,
     xp: 30,
     color: '#eccc68',
+    shape: 'hornet',
     ai: 'ranged',
     drops: [
       { petal: 'stinger', weight: 50 },
@@ -68,6 +72,7 @@ window.MobDB = {
     radius: 25,
     xp: 35,
     color: '#2f3542',
+    shape: 'spider',
     ai: 'chase',
     drops: [
       { petal: 'faster', weight: 50 },
@@ -83,6 +88,7 @@ window.MobDB = {
     radius: 30,
     xp: 28,
     color: '#2ed573',
+    shape: 'cactus',
     ai: 'stationary',
     drops: [
       { petal: 'peas', weight: 60 },
@@ -100,7 +106,6 @@ window.WaveManager = {
     if (waveNum >= 3) pool.push('hornet');
     if (waveNum >= 4) pool.push('spider');
 
-    // Determine mob rarity scaling based on wave
     const maxRarity = Math.min(5, Math.floor((waveNum - 1) / 3));
 
     for (let i = 0; i < count; i++) {
