@@ -51,11 +51,11 @@ window.UI = {
         <div style="font-weight:700; color:${stats.rarity.color}; margin-bottom:3px;">${stats.rarity.name} ${stats.name}</div>
         <div style="font-size:11px; color:#ddd; margin-bottom:6px;">${stats.desc}</div>
         <div style="font-size:11px; display:flex; flex-direction:column; gap:2px;">
-          <span>💥 Damage: <strong>${GameConfig.formatNum(stats.dmg)}</strong></span>
-          <span>🛡️ Health: <strong>${GameConfig.formatNum(stats.maxHp)}</strong></span>
-          <span>⏱️ Reload: <strong>${stats.reload}s</strong></span>
-          ${stats.heal ? `<span>💖 Heal: <strong>+${GameConfig.formatNum(stats.heal)} HP</strong></span>` : ''}
-          ${stats.regenBonus ? `<span>🍃 Regen: <strong>+${GameConfig.formatNum(stats.regenBonus)}/s</strong></span>` : ''}
+          <span>Damage: <strong>${GameConfig.formatNum(stats.dmg)}</strong></span>
+          <span>Health: <strong>${GameConfig.formatNum(stats.maxHp)}</strong></span>
+          <span>Reload: <strong>${stats.reload}s</strong></span>
+          ${stats.heal ? `<span>Heal: <strong>+${GameConfig.formatNum(stats.heal)} HP</strong></span>` : ''}
+          ${stats.regenBonus ? `<span>Regen: <strong>+${GameConfig.formatNum(stats.regenBonus)}/s</strong></span>` : ''}
         </div>
       `;
     } else if (type === 'mob') {
@@ -70,13 +70,13 @@ window.UI = {
       tip.innerHTML = `
         <div style="font-weight:700; color:${rar.color}; margin-bottom:3px;">${rar.name} ${mobDef.name}</div>
         <div style="font-size:11px; display:flex; flex-direction:column; gap:2px; margin-bottom:6px;">
-          <span>❤️ Health: <strong>${GameConfig.formatNum(mStats.hp)}</strong></span>
-          <span>⚔️ Damage: <strong>${GameConfig.formatNum(mStats.dmg)}</strong></span>
-          <span>🛡️ Armor: <strong>${GameConfig.formatNum(mStats.armor)}</strong></span>
-          <span>⚡ Speed: <strong>${mobDef.speed}</strong></span>
+          <span>Health: <strong>${GameConfig.formatNum(mStats.hp)}</strong></span>
+          <span>Damage: <strong>${GameConfig.formatNum(mStats.dmg)}</strong></span>
+          <span>Armor: <strong>${GameConfig.formatNum(mStats.armor)}</strong></span>
+          <span>Speed: <strong>${mobDef.speed}</strong></span>
         </div>
         <div style="font-size:11px; border-top:1px solid #444; padding-top:4px;">
-          <strong style="color:#f1c40f">Drop Rates (100% Sum):</strong><br/>
+          <strong style="color:#f1c40f">Drop Rates:</strong><br/>
           ${dropsHtml}
         </div>
       `;
@@ -132,7 +132,6 @@ window.UI = {
       return Number(rB) - Number(rA) || pA.localeCompare(pB);
     });
 
-    // 1. Render Inventory Grid (Equip ONLY - no crafting buttons)
     if (invGrid) {
       invGrid.innerHTML = '';
       if (keys.length === 0) {
@@ -161,7 +160,6 @@ window.UI = {
       }
     }
 
-    // 2. Render Crafting Grid (Craft ONLY - no equipping buttons)
     if (craftGrid) {
       craftGrid.innerHTML = '';
       const maxTier = GameConfig.RARITIES.length - 1;
@@ -208,11 +206,11 @@ window.UI = {
       if (key === 'health') {
         const curPct = Math.round(Progression.getHealthBonus() * 100);
         const nextPct = !isMax ? Math.round(t.bonuses[t.tier] * 100) : curPct;
-        statPreview = `Current: +${curPct}% HP ${!isMax ? `→ Next (${nextRar.name}): +${nextPct}% HP` : '(MAX)'}`;
+        statPreview = `Current: +${curPct}% HP ${!isMax ? `-> Next (${nextRar.name}): +${nextPct}% HP` : '(MAX)'}`;
       } else if (key === 'petalHealth') {
         const curPct = (Progression.getPetalHpMultiplier() * 100).toFixed(1);
         const nextPct = !isMax ? (t.mults[t.tier] * 100).toFixed(1) : curPct;
-        statPreview = `Current: ${curPct}% Petal HP ${!isMax ? `→ Next (${nextRar.name}): ${nextPct}%` : '(MAX)'}`;
+        statPreview = `Current: ${curPct}% Petal HP ${!isMax ? `-> Next (${nextRar.name}): ${nextPct}%` : '(MAX)'}`;
       } else {
         statPreview = `Tier: ${curRar ? curRar.name : 'Unranked'} (${t.tier}/${t.maxTier})`;
       }
@@ -222,8 +220,8 @@ window.UI = {
       row.innerHTML = `
         <div>
           <strong>${t.name}</strong> <span style="color:${curRar ? curRar.color : '#555'}">[${curRar ? curRar.name : 'Locked'}]</span>
-          <div style="font-size:12px; color:#333">${t.desc}</div>
-          <div style="font-size:11px; font-weight:700; color:#1e3799; margin-top:2px;">${statPreview}</div>
+          <div style="font-size:12px; color:#ddd">${t.desc}</div>
+          <div style="font-size:11px; font-weight:700; color:#74b9ff; margin-top:2px;">${statPreview}</div>
         </div>
         <button class="talent-btn" ${Progression.talentPoints < nextCost || isMax ? 'disabled' : ''} onclick="Progression.upgradeTalent('${key}')">
           ${isMax ? 'MAXED' : `Upgrade (${nextCost} TP)`}
@@ -236,7 +234,6 @@ window.UI = {
   renderGallery() {
     const grid = document.getElementById('gallery-grid');
     grid.innerHTML = '';
-    grid.style.gridTemplateColumns = `repeat(${GameConfig.RARITIES.length}, 1fr)`;
     
     Object.keys(MobDB).forEach(mKey => {
       const mobDef = MobDB[mKey];
@@ -254,22 +251,26 @@ window.UI = {
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = 34;
-        canvas.height = 34;
+        canvas.width = 24;
+        canvas.height = 24;
         const ctx = canvas.getContext('2d');
         if (unlocked) {
-          Game.renderMobShape(ctx, { x: 17, y: 17, radius: 13, def: mobDef, rarity: rar }, true);
+          Game.renderMobShape(ctx, { x: 12, y: 12, radius: 9, def: mobDef, rarity: rar }, true);
         } else {
           ctx.fillStyle = '#444';
-          ctx.beginPath(); ctx.arc(17, 17, 11, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(12, 12, 8, 0, Math.PI * 2); ctx.fill();
         }
 
         card.appendChild(canvas);
 
         const label = document.createElement('span');
-        label.style.fontSize = '8px';
+        label.style.fontSize = '7px';
         label.style.fontWeight = '700';
         label.style.color = unlocked ? '#fff' : '#888';
+        label.style.overflow = 'hidden';
+        label.style.textOverflow = 'ellipsis';
+        label.style.whiteSpace = 'nowrap';
+        label.style.width = '100%';
         label.textContent = mobDef.name;
         card.appendChild(label);
 
@@ -371,7 +372,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Engine v2.0 initialized with armor, Level 55 curve, and normalized drops.');
+    DebugLog.log('GAME', 'Engine initialized.');
   },
 
   resize() {
@@ -526,7 +527,6 @@ window.Game = {
       const dist = Math.hypot(dx, dy) || 1;
       const minDist = this.player.radius + m.radius;
 
-      // Solid Collision + Body Damage exchange (with Mob Armor reduction)
       if (dist < minDist) {
         const overlap = minDist - dist;
         const pushX = (dx / dist) * overlap * 0.5;
@@ -570,7 +570,6 @@ window.Game = {
         m.y += Math.sin(m.aiTimer * 0.5) * m.def.speed * dt;
       }
 
-      // Petal vs Mob Collisions (Applies Flat Mob Armor + Multi-hit logic)
       this.activePetals.forEach(p => {
         if (p.dead || m.hp <= 0) return;
         const pDistToMob = Math.hypot(p.x - m.x, p.y - m.y);
@@ -650,7 +649,6 @@ window.Game = {
 
   onMobKilled(m) {
     Progression.addXp(m.def.xp * m.rarity.petalMult);
-    // Bounded 100% probability drop roll
     if (Math.random() < 0.75) {
       let r = Math.random();
       let chosen = m.drops[0].petal;
@@ -735,7 +733,7 @@ window.Game = {
     ctx.translate(x, y);
     ctx.fillStyle = def.color;
     ctx.strokeStyle = rarity.color;
-    ctx.lineWidth = isMini ? 2 : 3;
+    ctx.lineWidth = isMini ? 1.5 : 3;
 
     switch (def.shape) {
       case 'ladybug':
@@ -765,7 +763,7 @@ window.Game = {
         break;
       case 'spider':
         ctx.beginPath(); ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.strokeStyle = def.color; ctx.lineWidth = isMini ? 1.5 : 2.5;
+        ctx.strokeStyle = def.color; ctx.lineWidth = isMini ? 1 : 2.5;
         for (let i = 0; i < 8; i++) {
           const ang = (Math.PI / 4) * i;
           ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang) * r * 1.5, Math.sin(ang) * r * 1.5); ctx.stroke();
