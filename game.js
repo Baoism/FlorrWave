@@ -36,8 +36,8 @@ window.UI = {
     
     let left = e.clientX + 14;
     let top = e.clientY + 14;
-    const tipWidth = 230;
-    const tipHeight = 180;
+    const tipWidth = 235;
+    const tipHeight = 190;
 
     if (left + tipWidth > window.innerWidth) left = e.clientX - tipWidth - 14;
     if (top + tipHeight > window.innerHeight) top = e.clientY - tipHeight - 14;
@@ -51,30 +51,32 @@ window.UI = {
         <div style="font-weight:700; color:${stats.rarity.color}; margin-bottom:3px;">${stats.rarity.name} ${stats.name}</div>
         <div style="font-size:11px; color:#ddd; margin-bottom:6px;">${stats.desc}</div>
         <div style="font-size:11px; display:flex; flex-direction:column; gap:2px;">
-          <span>💥 Damage: <strong>${stats.dmg}</strong></span>
-          <span>🛡️ Health: <strong>${stats.maxHp}</strong></span>
+          <span>💥 Damage: <strong>${GameConfig.formatNum(stats.dmg)}</strong></span>
+          <span>🛡️ Health: <strong>${GameConfig.formatNum(stats.maxHp)}</strong></span>
           <span>⏱️ Reload: <strong>${stats.reload}s</strong></span>
-          ${stats.heal ? `<span>💖 Heal: <strong>+${stats.heal} HP</strong></span>` : ''}
-          ${stats.regenBonus ? `<span>🍃 Regen: <strong>+${stats.regenBonus}/s</strong></span>` : ''}
+          ${stats.heal ? `<span>💖 Heal: <strong>+${GameConfig.formatNum(stats.heal)} HP</strong></span>` : ''}
+          ${stats.regenBonus ? `<span>🍃 Regen: <strong>+${GameConfig.formatNum(stats.regenBonus)}/s</strong></span>` : ''}
         </div>
       `;
     } else if (type === 'mob') {
       const mobDef = MobDB[data1];
       const rar = GameConfig.RARITIES[data2];
-      const hp = Math.round(mobDef.baseHp * rar.mult);
-      const dmg = Math.round(mobDef.baseDmg * rar.mult);
+      const mStats = MobHelper.getStats(data1, data2);
       
-      let dropsHtml = mobDef.drops.map(d => `<span style="color:${GameConfig.RARITIES[Math.min(5, data2)].color}">${d.chance} ${PetalDB[d.petal].name}</span>`).join('<br/>');
+      const dropsHtml = mStats.normalizedDrops.map(d =>
+        `<span style="color:${rar.color}">${d.chanceText} ${PetalDB[d.petal].name}</span>`
+      ).join('<br/>');
 
       tip.innerHTML = `
         <div style="font-weight:700; color:${rar.color}; margin-bottom:3px;">${rar.name} ${mobDef.name}</div>
         <div style="font-size:11px; display:flex; flex-direction:column; gap:2px; margin-bottom:6px;">
-          <span>❤️ Health: <strong>${hp}</strong></span>
-          <span>⚔️ Damage: <strong>${dmg}</strong></span>
+          <span>❤️ Health: <strong>${GameConfig.formatNum(mStats.hp)}</strong></span>
+          <span>⚔️ Damage: <strong>${GameConfig.formatNum(mStats.dmg)}</strong></span>
+          <span>🛡️ Armor: <strong>${GameConfig.formatNum(mStats.armor)}</strong></span>
           <span>⚡ Speed: <strong>${mobDef.speed}</strong></span>
         </div>
-        <div style="font-size:11px; border-top:1px solid #444; pt:4px;">
-          <strong style="color:#f1c40f">Drop Rates:</strong><br/>
+        <div style="font-size:11px; border-top:1px solid #444; padding-top:4px;">
+          <strong style="color:#f1c40f">Drop Rates (100% Sum):</strong><br/>
           ${dropsHtml}
         </div>
       `;
@@ -92,7 +94,7 @@ window.UI = {
     document.getElementById('mobs-label').textContent = `Mobs: ${Game.mobs.length}`;
     document.getElementById('lvl-label').textContent = `Lvl ${Progression.level}`;
     document.getElementById('xp-bar-fill').style.width = `${Math.min(100, (Progression.xp / Progression.xpNext) * 100)}%`;
-    document.getElementById('hp-label').textContent = `HP: ${Math.ceil(Game.player.hp)}/${Math.ceil(Game.player.maxHp)}`;
+    document.getElementById('hp-label').textContent = `HP: ${GameConfig.formatNum(Game.player.hp)}/${GameConfig.formatNum(Game.player.maxHp)}`;
 
     const badge = document.getElementById('tp-badge');
     badge.style.display = Progression.talentPoints > 0 ? 'inline-block' : 'none';
@@ -122,45 +124,74 @@ window.UI = {
   },
 
   renderInventory() {
-    const grids = [document.getElementById('inv-grid'), document.getElementById('craft-grid')];
-    grids.forEach(grid => {
-      if (!grid) return;
-      grid.innerHTML = '';
-      const keys = Object.keys(Progression.inventory).sort((a, b) => {
-        const [pA, rA] = a.split('_');
-        const [pB, rB] = b.split('_');
-        return Number(rB) - Number(rA) || pA.localeCompare(pB);
-      });
-
-      if (keys.length === 0) {
-        grid.innerHTML = '<p style="color:#ddd; grid-column:1/-1;">No petals in inventory.</p>';
-        return;
-      }
-
-      keys.forEach(key => {
-        const count = Progression.inventory[key];
-        const [petalId, rarityStr] = key.split('_');
-        const rarityId = Number(rarityStr);
-        const stats = PetalHelper.getStats(petalId, rarityId);
-
-        const card = document.createElement('div');
-        card.className = 'inv-card';
-        card.style.borderColor = stats.rarity.color;
-        card.onmouseenter = (e) => this.showTooltip(e, 'petal', petalId, rarityId);
-        card.onmouseleave = () => this.hideTooltip();
-
-        card.innerHTML = `
-          <div class="slot-dot" style="background:${stats.color}"></div>
-          <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
-          <span style="font-size:10px; color:#ddd">${stats.rarity.name}</span>
-          <button class="btn-equip" onclick="Progression.equip('${petalId}', ${rarityId}); UI.renderInventory();">Equip</button>
-          <button class="btn-craft" ${count < 5 || rarityId >= 5 ? 'disabled' : ''} onclick="Progression.craft('${petalId}', ${rarityId}); UI.renderInventory();">
-            ${rarityId >= 5 ? 'Max Tier' : `Craft (${Math.round(stats.rarity.craftChance * 100)}%)`}
-          </button>
-        `;
-        grid.appendChild(card);
-      });
+    const invGrid = document.getElementById('inv-grid');
+    const craftGrid = document.getElementById('craft-grid');
+    const keys = Object.keys(Progression.inventory).sort((a, b) => {
+      const [pA, rA] = a.split('_');
+      const [pB, rB] = b.split('_');
+      return Number(rB) - Number(rA) || pA.localeCompare(pB);
     });
+
+    // 1. Render Inventory Grid (Equip ONLY - no crafting buttons)
+    if (invGrid) {
+      invGrid.innerHTML = '';
+      if (keys.length === 0) {
+        invGrid.innerHTML = '<p style="color:#ddd; grid-column:1/-1;">No petals in inventory.</p>';
+      } else {
+        keys.forEach(key => {
+          const count = Progression.inventory[key];
+          const [petalId, rarityStr] = key.split('_');
+          const rarityId = Number(rarityStr);
+          const stats = PetalHelper.getStats(petalId, rarityId);
+
+          const card = document.createElement('div');
+          card.className = 'inv-card';
+          card.style.borderColor = stats.rarity.color;
+          card.onmouseenter = (e) => this.showTooltip(e, 'petal', petalId, rarityId);
+          card.onmouseleave = () => this.hideTooltip();
+
+          card.innerHTML = `
+            <div class="slot-dot" style="background:${stats.color}"></div>
+            <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
+            <span style="font-size:10px; color:#ddd">${stats.rarity.name}</span>
+            <button class="btn-equip" onclick="Progression.equip('${petalId}', ${rarityId}); UI.renderInventory();">Equip</button>
+          `;
+          invGrid.appendChild(card);
+        });
+      }
+    }
+
+    // 2. Render Crafting Grid (Craft ONLY - no equipping buttons)
+    if (craftGrid) {
+      craftGrid.innerHTML = '';
+      const maxTier = GameConfig.RARITIES.length - 1;
+      if (keys.length === 0) {
+        craftGrid.innerHTML = '<p style="color:#ddd; grid-column:1/-1;">No petals available to craft.</p>';
+      } else {
+        keys.forEach(key => {
+          const count = Progression.inventory[key];
+          const [petalId, rarityStr] = key.split('_');
+          const rarityId = Number(rarityStr);
+          const stats = PetalHelper.getStats(petalId, rarityId);
+
+          const card = document.createElement('div');
+          card.className = 'inv-card';
+          card.style.borderColor = stats.rarity.color;
+          card.onmouseenter = (e) => this.showTooltip(e, 'petal', petalId, rarityId);
+          card.onmouseleave = () => this.hideTooltip();
+
+          card.innerHTML = `
+            <div class="slot-dot" style="background:${stats.color}"></div>
+            <strong style="color:${stats.rarity.color}">${stats.name} x${count}</strong>
+            <span style="font-size:10px; color:#ddd">${stats.rarity.name}</span>
+            <button class="btn-craft" ${count < 5 || rarityId >= maxTier ? 'disabled' : ''} onclick="Progression.craft('${petalId}', ${rarityId}); UI.renderInventory();">
+              ${rarityId >= maxTier ? 'Max Tier' : `Craft (${(stats.rarity.craftChance * 100).toFixed(1)}%)`}
+            </button>
+          `;
+          craftGrid.appendChild(card);
+        });
+      }
+    }
   },
 
   renderTalents() {
@@ -168,15 +199,34 @@ window.UI = {
     const list = document.getElementById('talent-list');
     list.innerHTML = '';
     Object.entries(Progression.talents).forEach(([key, t]) => {
+      const isMax = t.tier >= t.maxTier;
+      const nextCost = isMax ? 0 : t.costs[t.tier];
+      const curRar = t.tier > 0 ? GameConfig.RARITIES[t.tier - 1] : null;
+      const nextRar = !isMax ? GameConfig.RARITIES[t.tier] : null;
+
+      let statPreview = '';
+      if (key === 'health') {
+        const curPct = Math.round(Progression.getHealthBonus() * 100);
+        const nextPct = !isMax ? Math.round(t.bonuses[t.tier] * 100) : curPct;
+        statPreview = `Current: +${curPct}% HP ${!isMax ? `→ Next (${nextRar.name}): +${nextPct}% HP` : '(MAX)'}`;
+      } else if (key === 'petalHealth') {
+        const curPct = (Progression.getPetalHpMultiplier() * 100).toFixed(1);
+        const nextPct = !isMax ? (t.mults[t.tier] * 100).toFixed(1) : curPct;
+        statPreview = `Current: ${curPct}% Petal HP ${!isMax ? `→ Next (${nextRar.name}): ${nextPct}%` : '(MAX)'}`;
+      } else {
+        statPreview = `Tier: ${curRar ? curRar.name : 'Unranked'} (${t.tier}/${t.maxTier})`;
+      }
+
       const row = document.createElement('div');
       row.className = 'talent-row';
       row.innerHTML = `
         <div>
-          <strong>${t.name}</strong> <span style="color:#27ae60">(Lv.${t.level}/${t.max})</span>
-          <div style="font-size:12px; color:#555">${t.desc}</div>
+          <strong>${t.name}</strong> <span style="color:${curRar ? curRar.color : '#555'}">[${curRar ? curRar.name : 'Locked'}]</span>
+          <div style="font-size:12px; color:#333">${t.desc}</div>
+          <div style="font-size:11px; font-weight:700; color:#1e3799; margin-top:2px;">${statPreview}</div>
         </div>
-        <button class="talent-btn" ${Progression.talentPoints <= 0 || t.level >= t.max ? 'disabled' : ''} onclick="Progression.upgradeTalent('${key}')">
-          Upgrade (1 TP)
+        <button class="talent-btn" ${Progression.talentPoints < nextCost || isMax ? 'disabled' : ''} onclick="Progression.upgradeTalent('${key}')">
+          ${isMax ? 'MAXED' : `Upgrade (${nextCost} TP)`}
         </button>
       `;
       list.appendChild(row);
@@ -186,6 +236,7 @@ window.UI = {
   renderGallery() {
     const grid = document.getElementById('gallery-grid');
     grid.innerHTML = '';
+    grid.style.gridTemplateColumns = `repeat(${GameConfig.RARITIES.length}, 1fr)`;
     
     Object.keys(MobDB).forEach(mKey => {
       const mobDef = MobDB[mKey];
@@ -202,16 +253,15 @@ window.UI = {
           card.onmouseleave = () => this.hideTooltip();
         }
 
-        // Create canvas mini sprite for gallery card
         const canvas = document.createElement('canvas');
-        canvas.width = 36;
-        canvas.height = 36;
+        canvas.width = 34;
+        canvas.height = 34;
         const ctx = canvas.getContext('2d');
         if (unlocked) {
-          Game.renderMobShape(ctx, { x: 18, y: 18, radius: 14, def: mobDef, rarity: rar }, true);
+          Game.renderMobShape(ctx, { x: 17, y: 17, radius: 13, def: mobDef, rarity: rar }, true);
         } else {
           ctx.fillStyle = '#444';
-          ctx.beginPath(); ctx.arc(18, 18, 12, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(17, 17, 11, 0, Math.PI * 2); ctx.fill();
         }
 
         card.appendChild(canvas);
@@ -266,12 +316,13 @@ window.Game = {
   projectiles: [],
   activePetals: [],
   orbitAngle: 0,
-  currentOrbitRadius: 68, // Smooth lerp storage
+  currentOrbitRadius: 68,
 
   player: {
     x: 0, y: 0,
     radius: 22,
-    hp: 100, maxHp: 100,
+    hp: 200, maxHp: 200,
+    bodyDmg: 10,
     invuln: 0
   },
 
@@ -320,7 +371,7 @@ window.Game = {
 
     this.lastTime = performance.now();
     requestAnimationFrame(t => this.loop(t));
-    DebugLog.log('GAME', 'Engine initialized with smooth spring extension and mob gallery sprites.');
+    DebugLog.log('GAME', 'Engine v2.0 initialized with armor, Level 55 curve, and normalized drops.');
   },
 
   resize() {
@@ -329,9 +380,11 @@ window.Game = {
   },
 
   recalcPlayerStats() {
-    const hpMult = 1 + Progression.talents.maxHp.level * 0.25;
-    const ratio = this.player.hp / this.player.maxHp;
-    this.player.maxHp = GameConfig.BASE_PLAYER_HP * hpMult;
+    const baseStats = GameConfig.getPlayerBaseStats(Progression.level);
+    const hpMult = 1 + Progression.getHealthBonus();
+    const ratio = this.player.maxHp > 0 ? (this.player.hp / this.player.maxHp) : 1;
+    this.player.maxHp = Math.round(baseStats.baseHp * hpMult);
+    this.player.bodyDmg = baseStats.bodyDmg;
     this.player.hp = Math.min(this.player.maxHp, Math.max(1, this.player.maxHp * ratio));
     UI.updateHUD();
   },
@@ -339,10 +392,12 @@ window.Game = {
   rebuildActivePetals() {
     this.activePetals = [];
     const slots = Progression.equipped.slice(0, Progression.getSlotCount());
+    const dupBonus = Progression.talents.duplicator.tier;
+
     slots.forEach((item, slotIdx) => {
       if (!item) return;
       const stats = PetalHelper.getStats(item.petalId, item.rarityId);
-      const count = stats.cluster || 1;
+      const count = (stats.cluster || 1) + (stats.cluster ? 0 : dupBonus);
       for (let c = 0; c < count; c++) {
         this.activePetals.push({
           slotIdx,
@@ -422,7 +477,7 @@ window.Game = {
     const attacking = this.input.mouseDownLeft || this.input.keys['Space'];
     const defending = this.input.mouseDownRight || this.input.keys['ShiftLeft'];
 
-    let spinBonus = 1 + Progression.talents.spinSpeed.level * 0.15;
+    let spinBonus = 1 + Progression.talents.rotationSpeed.tier * 0.15;
     let passiveRegen = 0;
     this.activePetals.forEach(p => {
       if (!p.dead && p.stats.spinBonus) spinBonus += p.stats.spinBonus;
@@ -434,21 +489,17 @@ window.Game = {
     }
 
     this.orbitAngle += GameConfig.BASE_SPIN_SPEED * spinBonus * dt;
-    const reachMult = 1 + Progression.talents.reach.level * 0.10;
-    
-    // Smooth Lerp Target Orbit Extension & Compression
     let targetOrbit = GameConfig.BASE_ORBIT_RADIUS;
-    if (attacking) targetOrbit *= GameConfig.ATTACK_ORBIT_MULT * reachMult;
+    if (attacking) targetOrbit *= GameConfig.ATTACK_ORBIT_MULT;
     else if (defending) targetOrbit *= GameConfig.DEFEND_ORBIT_MULT;
 
     this.currentOrbitRadius += (targetOrbit - this.currentOrbitRadius) * Math.min(1, dt * 12);
 
-    const reloadMult = 1 + Progression.talents.reloadSpeed.level * 0.12;
     const totalSlots = Math.max(1, Progression.getSlotCount());
 
     this.activePetals.forEach(p => {
       if (p.dead) {
-        p.reloadTimer -= dt * reloadMult;
+        p.reloadTimer -= dt;
         if (p.reloadTimer <= 0) {
           p.dead = false;
           p.hp = p.stats.maxHp;
@@ -475,6 +526,7 @@ window.Game = {
       const dist = Math.hypot(dx, dy) || 1;
       const minDist = this.player.radius + m.radius;
 
+      // Solid Collision + Body Damage exchange (with Mob Armor reduction)
       if (dist < minDist) {
         const overlap = minDist - dist;
         const pushX = (dx / dist) * overlap * 0.5;
@@ -486,6 +538,7 @@ window.Game = {
 
         if (this.player.invuln <= 0) {
           this.player.hp -= m.dmg;
+          m.hp -= Math.max(1, this.player.bodyDmg - m.armor);
           this.player.invuln = 0.45;
         }
       }
@@ -517,12 +570,14 @@ window.Game = {
         m.y += Math.sin(m.aiTimer * 0.5) * m.def.speed * dt;
       }
 
+      // Petal vs Mob Collisions (Applies Flat Mob Armor + Multi-hit logic)
       this.activePetals.forEach(p => {
         if (p.dead || m.hp <= 0) return;
         const pDistToMob = Math.hypot(p.x - m.x, p.y - m.y);
         if (pDistToMob < p.stats.radius + m.radius) {
           const mobIncomingDmg = m.dmg * 0.35;
-          m.hp -= p.stats.dmg;
+          const netDmg = Math.max(1, p.stats.dmg - m.armor);
+          m.hp -= netDmg;
 
           if (p.hp > mobIncomingDmg) {
             p.hp -= mobIncomingDmg * 0.2;
@@ -594,13 +649,13 @@ window.Game = {
   },
 
   onMobKilled(m) {
-    Progression.addXp(m.def.xp * m.rarity.mult);
-    if (Math.random() < 0.72) {
-      const totalW = m.def.drops.reduce((s, d) => s + d.weight, 0);
-      let r = Math.random() * totalW;
-      let chosen = m.def.drops[0].petal;
-      for (const d of m.def.drops) {
-        r -= d.weight;
+    Progression.addXp(m.def.xp * m.rarity.petalMult);
+    // Bounded 100% probability drop roll
+    if (Math.random() < 0.75) {
+      let r = Math.random();
+      let chosen = m.drops[0].petal;
+      for (const d of m.drops) {
+        r -= d.prob;
         if (r <= 0) { chosen = d.petal; break; }
       }
       this.drops.push({
