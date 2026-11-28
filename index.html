@@ -41,7 +41,7 @@
     .modal-box-craft { background: #d35400; border: 3px solid #e67e22; border-radius: 16px; width: 680px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
     .modal-header-craft { padding: 14px 20px; background: #b94000; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e67e22; color: #fff; font-size: 18px; font-weight: 800; }
 
-    .modal-box-gold { background: #f1c40f; border: 3px solid #f39c12; border-radius: 16px; width: 720px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: #2c3e50; }
+    .modal-box-gold { background: #f1c40f; border: 3px solid #f39c12; border-radius: 16px; width: 780px; max-width: 96vw; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: #2c3e50; }
     .modal-header-gold { padding: 14px 20px; background: #d4ac0d; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #b7950b; color: #2c3e50; font-size: 18px; font-weight: 800; }
 
     .close-btn { background: #e84118; border: none; color: #fff; font-weight: 800; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; }
@@ -55,9 +55,9 @@
     .btn-craft { background: #fbc531; color: #111; }
     .btn-craft:disabled { background: #555; color: #888; cursor: not-allowed; }
 
-    /* Gallery Grid */
-    .gallery-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-    .gallery-card { background: rgba(255,255,255,0.2); border: 2px solid rgba(0,0,0,0.2); border-radius: 8px; padding: 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 80px; justify-content: center; }
+    /* Gallery Grid - 9 columns fixed for compact sizing */
+    .gallery-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+    .gallery-card { background: rgba(255,255,255,0.2); border: 2px solid rgba(0,0,0,0.2); border-radius: 6px; padding: 4px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 52px; overflow: hidden; }
     .gallery-card.locked { opacity: 0.35; filter: grayscale(1); }
 
     /* Talents */
@@ -89,22 +89,22 @@
       <span>Exp</span>
       <div id="xp-bar-wrap"><div id="xp-bar-fill"></div></div>
     </div>
-    <div class="hud-pill" id="hp-label">HP: 100/100</div>
+    <div class="hud-pill" id="hp-label">HP: 200/200</div>
   </div>
 
   <div id="hud-buttons">
-    <button class="side-btn" onclick="UI.openModal('inv-modal')">🎒 Petals [Z]</button>
-    <button class="side-btn" onclick="UI.openModal('talent-modal')">⭐ Talents [X] <span id="tp-badge" class="badge">0</span></button>
-    <button class="side-btn" onclick="UI.openModal('craft-modal')">🛠️ Crafting [C]</button>
-    <button class="side-btn" onclick="UI.openModal('gallery-modal')">🖼️ Mob Gallery</button>
-    <button class="side-btn" onclick="UI.openModal('debug-modal')">📋 Output [~]</button>
+    <button class="side-btn" onclick="UI.openModal('inv-modal')">Petals [Z]</button>
+    <button class="side-btn" onclick="UI.openModal('talent-modal')">Talents [X] <span id="tp-badge" class="badge">0</span></button>
+    <button class="side-btn" onclick="UI.openModal('craft-modal')">Crafting [C]</button>
+    <button class="side-btn" onclick="UI.openModal('gallery-modal')">Mob Gallery</button>
+    <button class="side-btn" onclick="UI.openModal('debug-modal')">Output [~]</button>
   </div>
 
   <div id="toast"></div>
   <div id="tooltip"></div>
   <div id="loadout-bar"></div>
 
-  <!-- Inventory / Petals Modal (Blue Theme) -->
+  <!-- Inventory Modal -->
   <div id="inv-modal" class="modal">
     <div class="modal-box-blue">
       <div class="modal-header-blue">
@@ -121,7 +121,7 @@
     </div>
   </div>
 
-  <!-- Crafting Modal (Orange Craft Theme) -->
+  <!-- Crafting Modal -->
   <div id="craft-modal" class="modal">
     <div class="modal-box-craft">
       <div class="modal-header-craft">
@@ -138,7 +138,7 @@
     </div>
   </div>
 
-  <!-- Talents Modal (Gold Theme) -->
+  <!-- Talents Modal -->
   <div id="talent-modal" class="modal">
     <div class="modal-box-gold">
       <div class="modal-header-gold">
@@ -149,7 +149,7 @@
     </div>
   </div>
 
-  <!-- Mob Gallery Modal (Gold Theme) -->
+  <!-- Mob Gallery Modal -->
   <div id="gallery-modal" class="modal">
     <div class="modal-box-gold">
       <div class="modal-header-gold">
@@ -163,7 +163,7 @@
     </div>
   </div>
 
-  <!-- Death Summary Modal ("Collected this run") -->
+  <!-- Death Summary Modal -->
   <div id="death-modal" class="modal">
     <div class="death-box">
       <h2 style="color:#e84118; font-size:26px;">You were destroyed</h2>
@@ -173,22 +173,21 @@
     </div>
   </div>
 
-  <!-- Debug / Vibe-Coding Output Modal -->
+  <!-- Debug Output Modal -->
   <div id="debug-modal" class="modal">
     <div class="modal-box-blue">
       <div class="modal-header-blue">
-        <span>Vibe-Coding Output & Telemetry [~]</span>
+        <span>Diagnostic Output [~]</span>
         <button class="close-btn" onclick="UI.closeModals()">X</button>
       </div>
       <div class="modal-body">
         <p style="font-size:12px; color:#ccc;">Copy this diagnostic report and paste it back into chat for updates or bug fixes:</p>
         <textarea id="debug-output" readonly></textarea>
-        <button class="copy-btn" onclick="DebugLog.copyReport()">📋 Copy Report to Clipboard</button>
+        <button class="copy-btn" onclick="DebugLog.copyReport()">Copy Report to Clipboard</button>
       </div>
     </div>
   </div>
 
-  <!-- Load Scripts in Exact Dependency Order -->
   <script src="config.js"></script>
   <script src="petals.js"></script>
   <script src="mobs.js"></script>
